@@ -1,0 +1,10 @@
+services:
+  - type: worker
+    name: telegram-bot-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python TelegramBotu.py
+    envVars:
+      - key: TELEGRAM_TOKEN
+        value: 7806413438:AAGao-5vJdpxxydutLHE_tl6rSIFm9MUeb4
+    autoDeploy: true 
