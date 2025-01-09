@@ -8,22 +8,43 @@ from aiohttp import web
 # Logging ayarları
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
+    level=logging.DEBUG
 )
 logger = logging.getLogger(__name__)
 
 # Bot token
-TOKEN = "7806413438:AAGao-5vJdpxxydutLHE_tl6rSIFm9MUeb4"
+TOKEN = "7921860431:AAGSNoL9p_2UV1u_o8sQDBqZjWqBSHHZyUk"
 
-# Port bilgisi - Render.com için önemli
+# Port bilgisi
 PORT = int(os.getenv("PORT", "10000"))
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Bot /start komutu alınca çalışacak fonksiyon"""
-    await update.message.reply_text(
-        f"👋 Merhaba {update.effective_user.first_name}!\n"
-        "Hoş geldin! Ben Zethara botuyum."
-    )
+    try:
+        user = update.effective_user
+        logger.info(f"Start komutu alındı - Kullanıcı: {user.first_name} (ID: {user.id})")
+        
+        message = await update.message.reply_text(
+            f"👋 Merhaba {user.first_name}!\n"
+            "Hoş geldin! Ben Zethara botuyum."
+        )
+        logger.info("Start mesajı başarıyla gönderildi")
+        
+    except Exception as e:
+        logger.error(f"Start komutunda hata: {e}")
+        await update.message.reply_text("Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.")
+
+async def test_token():
+    """Token'ı test et"""
+    try:
+        app = Application.builder().token(TOKEN).build()
+        bot_info = await app.bot.get_me()
+        logger.info(f"Bot başarıyla bağlandı: {bot_info.first_name} (@{bot_info.username})")
+        await app.stop()
+        return True
+    except Exception as e:
+        logger.error(f"Token testi başarısız: {e}")
+        return False
 
 async def web_handler(request):
     """Web endpoint handler"""
@@ -43,14 +64,23 @@ async def run_web_app():
 async def run_bot():
     """Bot uygulamasını çalıştır"""
     app = Application.builder().token(TOKEN).build()
+    
+    # Komutları ekle
     app.add_handler(CommandHandler("start", start))
+    
+    # Bot'u başlat
     await app.initialize()
     await app.start()
-    logger.info("Bot başlatılıyor...")
+    logger.info("Bot başlatıldı ve komutları dinliyor")
     return app
 
 async def main():
     """Ana fonksiyon"""
+    # Önce token'ı test et
+    if not await test_token():
+        logger.error("Token geçersiz veya bot başlatılamıyor!")
+        return
+
     try:
         # Web uygulamasını başlat
         runner = await run_web_app()
@@ -64,6 +94,7 @@ async def main():
                 await app.update_queue.get()
             except Exception as e:
                 logger.error(f"Polling hatası: {e}")
+                await asyncio.sleep(1)
                 continue
             
     except Exception as e:
