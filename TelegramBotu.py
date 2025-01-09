@@ -25,39 +25,56 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Hoş geldin! Ben Zethara botuyum."
     )
 
-async def web_app():
-    """Web uygulaması için basit bir endpoint"""
+async def web_handler(request):
+    """Web endpoint handler"""
+    return web.Response(text="Zethara Bot aktif! 🚀")
+
+async def run_web_app():
+    """Web uygulamasını çalıştır"""
     app = web.Application()
-    
-    async def handle(request):
-        return web.Response(text="Zethara Bot aktif! 🚀")
-    
-    app.router.add_get("/", handle)
+    app.router.add_get("/", web_handler)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host="0.0.0.0", port=PORT)
+    await site.start()
+    logger.info(f"Web uygulaması başlatıldı - http://0.0.0.0:{PORT}")
+    return runner
+
+async def run_bot():
+    """Bot uygulamasını çalıştır"""
+    app = Application.builder().token(TOKEN).build()
+    app.add_handler(CommandHandler("start", start))
+    await app.initialize()
+    await app.start()
+    logger.info("Bot başlatılıyor...")
     return app
 
 async def main():
     """Ana fonksiyon"""
-    # Bot uygulamasını başlat
-    application = Application.builder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-
-    # Web uygulamasını başlat
-    app = await web_app()
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host="0.0.0.0", port=PORT)
-    
     try:
-        await site.start()
-        logger.info(f"Web uygulaması başlatıldı - http://0.0.0.0:{PORT}")
-        logger.info("Bot başlatılıyor...")
-        await application.run_polling(allowed_updates=Update.ALL_TYPES)
+        # Web uygulamasını başlat
+        runner = await run_web_app()
+        
+        # Bot'u başlat
+        app = await run_bot()
+        
+        # Sonsuz döngüde çalıştır
+        while True:
+            try:
+                await app.update_queue.get()
+            except Exception as e:
+                logger.error(f"Polling hatası: {e}")
+                continue
+            
     except Exception as e:
-        logger.error(f"Hata oluştu: {e}")
+        logger.error(f"Ana döngü hatası: {e}")
     finally:
-        logger.info("Bot durduruluyor...")
-        await application.stop()
-        await runner.cleanup()
+        # Temiz kapatma
+        if 'app' in locals():
+            await app.stop()
+        if 'runner' in locals():
+            await runner.cleanup()
+        logger.info("Bot ve web uygulaması durduruldu")
 
 if __name__ == "__main__":
     try:

@@ -8,4 +8,6 @@ services:
     envVars:
       - key: TELEGRAM_TOKEN
         value: 7806413438:AAGao-5vJdpxxydutLHE_tl6rSIFm9MUeb4
+      - key: PORT
+        value: 10000
     autoDeploy: true 
